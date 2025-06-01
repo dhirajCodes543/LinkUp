@@ -16,7 +16,7 @@ import {
   Phone as LuPhone,
   User as LuUser
 } from 'lucide-react';
-import { FaTwitter, FaGithub } from 'react-icons/fa';
+import { FaInstagram, FaGithub } from 'react-icons/fa';
 import useThemeStore from '../../Stores/ThemeStore';
 import useAuthStore from '../../Stores/AuthStore';
 import { ToastContainer, toast } from 'react-toastify';
@@ -26,22 +26,38 @@ import { useNavigate } from 'react-router-dom';
 const LinkUpLanding = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isLoggedIn, backendData } = useAuthStore();
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const backendData = useAuthStore((state) => state.backendData);
+
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   const navigate = useNavigate();
   // Smooth scroll function
   const smoothScrollTo = (elementId) => {
     const element = document.getElementById(elementId);
-    if (element) {
+
+    if (!element) return;
+
+    if (mobileMenuOpen) {
+      // Close the menu first, then scroll after 1 second
+      setMobileMenuOpen(false);
+      setTimeout(() => {
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+      }, 500);
+    } else {
+      // If menu is not open, scroll immediately
       element.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
         inline: 'nearest'
       });
     }
-    setMobileMenuOpen(false); // Close mobile menu after clicking
   };
+
 
   // Sample data
   const features = [
@@ -105,6 +121,9 @@ const LinkUpLanding = () => {
 
   // Auto-rotate testimonials
   useEffect(() => {
+
+    console.log(isLoggedIn)
+
     const interval = setInterval(() => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
@@ -113,7 +132,7 @@ const LinkUpLanding = () => {
 
   // Handle authentication (placeholder)
   const handleAuth = (action) => {
-    if (action === 'signin')
+    if (action === 'login')
       navigate('/signin')
     if (action === 'logout')
       navigate('/logout')
@@ -497,7 +516,7 @@ const LinkUpLanding = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className={`py-20 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <section id="testimonials" className={`py-20 ${darkMode ? 'bg-gray-800' : 'bg-white'}  overflow-x-hidden sm:overflow-x-visible`}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -511,7 +530,7 @@ const LinkUpLanding = () => {
               Real experiences from our community
             </p>
           </motion.div>
-
+          
           <div className="relative">
             <AnimatePresence mode="wait">
               <motion.div
@@ -596,13 +615,13 @@ const LinkUpLanding = () => {
                 Connecting tech students worldwide through secure, meaningful conversations.
               </p>
               <div className="flex space-x-4">
-                <a href="#" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
-                  <FaTwitter className="w-5 h-5" />
+                <a href="https://www.instagram.com/ddra890/" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                  <FaInstagram className="w-5 h-5" />
                 </a>
-                <a href="#" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                <a href="https://github.com/dhirajCodes543" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
                   <FaGithub className="w-5 h-5" />
                 </a>
-                <a href="#" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                <a href="mailto:d4dhirajbarnwal@gmail.com" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
                   <Mail className="w-5 h-5" />
                 </a>
               </div>

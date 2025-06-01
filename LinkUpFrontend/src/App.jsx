@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import useAuthStore from "./Stores/AuthStore"; // adjust path if needed
 import UserInfo from "./Components/UserInfo/UserInfo";
 import Layout from "./Components/Layouts/Layout";
-import Main from "./Components/Dashboard/Chat/Main";
+import Main from "./Components/Dashboard/VideoCall/Main";
 
 const LoadingSpinner = () => {
   return (
@@ -68,7 +68,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/userinfo" element={<UserInfo />} />
-        <Route path="/chat" element={<Main />} />
+        <Route path="/videocall" element={<Main />} />
 
 
         <Route element={<Layout />}>

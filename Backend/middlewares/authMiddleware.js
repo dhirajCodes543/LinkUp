@@ -3,13 +3,16 @@ import admin from '../services/firebaseAdmin.js'
 
 const authenticateFirebaseToken = async (req, res, next) => {
     const token = req.headers.authorization?.split("Bearer ")[1]
-    if (!token)
+    if (!token){
+        console.log("Error")
         return res.status(401).json({ error: "Token missing" })
+    }
     try {
 
         const decodedToken = await admin.auth().verifyIdToken(token);
 
         if (!decodedToken.email_verified) {
+            console.log("Email error")
             return res.status(403).json({ error: "Email not verified" });
         }
 

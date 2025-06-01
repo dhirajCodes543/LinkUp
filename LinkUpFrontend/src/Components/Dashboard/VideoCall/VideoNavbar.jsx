@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Home, LogOut, Moon, Sun } from 'lucide-react';
 import { motion } from 'framer-motion';
+import useThemeStore from '../../../Stores/ThemeStore';
 
-const ChatNavbar = () => {
-  const [darkMode, setDarkMode] = useState(true);
+const VideoNavbar = () => {
+  const { darkMode,toggleDarkMode }= useThemeStore();
   const [isLoggedIn, setIsLoggedIn] = useState(true);
 
   // Update dark mode class on root element
@@ -51,7 +52,7 @@ const ChatNavbar = () => {
         <div className="flex items-center gap-4">
           {/* Dark Mode Toggle */}
           <motion.button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={() => toggleDarkMode()}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 300 }}
@@ -94,4 +95,4 @@ const ChatNavbar = () => {
   );
 };
 
-export default ChatNavbar;
+export default VideoNavbar;

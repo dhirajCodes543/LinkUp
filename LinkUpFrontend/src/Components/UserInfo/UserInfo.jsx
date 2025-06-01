@@ -169,7 +169,6 @@ const UserInfo = () => {
             return;
         }
 
-
         let idToken
         try {
             idToken = await user.getIdToken()

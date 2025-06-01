@@ -5,7 +5,6 @@ import authenticateFirebaseToken from "../middlewares/authMiddleware.js";
 const router = Router()
 
 
-
 router.get("/userdata", async (req, res) => {
   try {
     const userEmail = req.user?.email;
