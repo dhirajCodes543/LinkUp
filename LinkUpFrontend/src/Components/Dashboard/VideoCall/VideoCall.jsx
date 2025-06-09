@@ -1,216 +1,488 @@
-import React, { useEffect, useRef, useState } from "react";
-import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import axios from "axios";
-import { auth } from "../../../firebase";
+import { ZegoExpressEngine } from 'zego-express-engine-webrtc';
+import { useEffect, useRef, useState } from 'react';
 
-function VideoCall({ roomId, userId, userName = "User", setRoomId, setUserId }) {
-  const containerRef = useRef(null);
-  const zcInstanceRef = useRef(null);
+const VideoCall = ({ token, roomID, userID }) => {
+  if (!roomID || !token || !userID) return null;
+  
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const zegoEngineRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteStreamsRef = useRef(new Map());
   const [error, setError] = useState(null);
-  const [isJoining, setIsJoining] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [callStarted, setCallStarted] = useState(false);
+  const [connectionState, setConnectionState] = useState('connecting');
+  const currentRoomRef = useRef(null);
+  const isCleaningUpRef = useRef(false);
+  
+  // Replace with your actual App ID
+  const appID = 2049494275;
 
-  // Responsive mobile detection
+  // Token validation helper
+  const validateToken = (token) => {
+    if (!token || typeof token !== 'string') {
+      throw new Error('Invalid token format');
+    }
+    if (token.length < 10) {
+      throw new Error('Token appears to be too short');
+    }
+    // Add more validation as needed
+    return true;
+  };
+
+  // Initialize Zego Engine
   useEffect(() => {
-    const checkMobile = () => {
-      const mobileCheck =
-        window.innerWidth <= 768 ||
-        window.matchMedia("(pointer:coarse)").matches;
-      setIsMobile(mobileCheck);
-    };
+    if (!appID || isNaN(appID)) {
+      setError('Invalid Zego App ID');
+      return;
+    }
 
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Prevent accidental leave
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (zcInstanceRef.current) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  // Initialize video call with mobile optimizations
-  useEffect(() => {
-    if (!roomId || !userId || !containerRef.current || zcInstanceRef.current) return;
-
-    const initializeCall = async () => {
-      try {
-        setIsJoining(true);
-
-        const user = auth.currentUser;
-
-        if (!user) {
-          toast.error("User not signed in");
-          return;
-        }
-
-        if (!user.emailVerified) {
-          toast.error("Please verify your email before continuing.");
-          return;
-        }
-        const userName = user.displayName
-        const tokenGeneration = async () => {
-          try {
-            const idToken = await user.getIdToken();
-
-            const res = await axios.post(
-              "/api/randomcall/token",
-              { roomId, userId,userName },
-              {
-                headers: {
-                  Authorization: `Bearer ${idToken}`,
-                },
-              }
-            );
-
-            return res.data.token;  // return the token here
-
-          } catch (error) {
-            console.error("Token generation error:", error);
-            return null;  // return null on failure
-          }
-        };
-
-        const kitToken = await tokenGeneration();
-
-        if (!kitToken) {
-            console.log("Token generation failed");
-            return;
-        }
-
-
-
-        const zc = ZegoUIKitPrebuilt.create(kitToken);
-        zcInstanceRef.current = zc;
-
-        zc.joinRoom({
-          container: containerRef.current,
+    try {
+      if (!zegoEngineRef.current) {
+        console.log('Initializing Zego Engine with App ID:', appID);
+        // Add scenario config for better connection
+        zegoEngineRef.current = new ZegoExpressEngine(appID, {
           scenario: {
-            mode: ZegoUIKitPrebuilt.OneONoneCall,
-          },
-          showPreJoinView: true,
-          showRoomTimer: true,
-          showTextChat: true,
-          showScreenSharingButton: true,
-          showAudioVideoSettingsButton: true,
-          layout: isMobile ? "Grid" : "Auto", // Fixed mobile layout
-          maxUsers: 2,
-          turnOnMicrophoneWhenJoining: true,
-          turnOnCameraWhenJoining: true,
-          useFrontFacingCamera: isMobile,
-          onJoinRoomFailed: (errorCode) => {
-            setError(`Connection failed (Error: ${errorCode})`);
-          },
-          onJoinRoom: () => {
-            setIsJoining(false);
-            setCallStarted(true);
-          },
-          onLeaveRoom: () => {
-            zcInstanceRef.current = null;
-            setRoomId(null)
-            setUserId(null)
-
-            console.log("Room left");
-            setCallStarted(false);
-          },
-          config: {
-            autoReconnect: true,
-            maxReconnectTimes: 5,
-            reconnectInterval: 3000,
-          },
-          // Mobile-specific UI improvements
-          showUserList: !isMobile,
-          showLeavingView: false,
-          showInviteButton: !isMobile,
-          showTurnOffRemoteCameraButton: !isMobile,
-          showTurnOffRemoteMicrophoneButton: !isMobile,
-          showRemoveUserButton: !isMobile,
-          videoResolutionList: isMobile
-            ? [ZegoUIKitPrebuilt.VideoResolution_360P]
-            : [
-              ZegoUIKitPrebuilt.VideoResolution_180P,
-              ZegoUIKitPrebuilt.VideoResolution_360P,
-              ZegoUIKitPrebuilt.VideoResolution_720P
-            ],
+            mode: 'General', // or 'Communication' for 1-on-1 calls
+            codec: 'VP8'
+          }
         });
-      } catch (err) {
-        setError(err.message || "Failed to initialize video call");
-        setIsJoining(false);
+      }
+    } catch (err) {
+      setError('Failed to initialize video engine');
+      console.error('Engine initialization error:', err);
+      return;
+    }
+
+    const engine = zegoEngineRef.current;
+    
+    // Room state change handler with better error mapping
+    const handleRoomStateUpdate = (roomID, state, errorCode, extendedData) => {
+      console.log('Room state update:', { roomID, state, errorCode, extendedData });
+      
+      if (errorCode !== 0) {
+        console.error('Room connection error:', errorCode);
+        
+        let errorMessage = 'Connection failed';
+        switch (errorCode) {
+          case 1102016:
+            errorMessage = 'Room service error. Please check your configuration and try again.';
+            break;
+          case 1102001:
+            errorMessage = 'Invalid App ID or configuration.';
+            break;
+          case 1102003:
+            errorMessage = 'Authentication failed. Invalid token.';
+            break;
+          case 1102014:
+            errorMessage = 'Room capacity exceeded.';
+            break;
+          default:
+            errorMessage = `Room connection failed (${errorCode}): ${extendedData || 'Unknown error'}`;
+        }
+        
+        setError(errorMessage);
+        setConnectionState('failed');
+      } else {
+        switch (state) {
+          case 'CONNECTED':
+            setConnectionState('connected');
+            setError(null);
+            break;
+          case 'CONNECTING':
+            setConnectionState('connecting');
+            break;
+          case 'DISCONNECTED':
+            setConnectionState('disconnected');
+            break;
+        }
+      }
+    };
+    
+    const handleStreamUpdate = (updateRoomID, updateType, streamList) => {
+      if (updateRoomID !== currentRoomRef.current || isCleaningUpRef.current) return;
+      
+      console.log('Stream update:', { updateRoomID, updateType, streamList });
+      
+      if (updateType === 'ADD') {
+        streamList.forEach(stream => {
+          if (remoteStreamsRef.current.has(stream.streamID)) return;
+
+          console.log('Adding remote stream:', stream.streamID);
+          
+          const videoElement = document.createElement('video');
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.className = 'remote-video';
+          videoElement.style.width = '100%';
+          videoElement.style.height = '100%';
+          videoElement.style.objectFit = 'cover';
+          
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.appendChild(videoElement);
+          }
+          
+          engine.playStream(stream.streamID, { video: videoElement })
+            .then(() => {
+              console.log('Successfully playing stream:', stream.streamID);
+            })
+            .catch(err => {
+              console.error('Play stream error:', err);
+              videoElement.remove();
+            });
+          
+          remoteStreamsRef.current.set(stream.streamID, videoElement);
+        });
+      } else if (updateType === 'DELETE') {
+        streamList.forEach(stream => {
+          const videoElement = remoteStreamsRef.current.get(stream.streamID);
+          if (videoElement) {
+            console.log('Removing remote stream:', stream.streamID);
+            engine.stopPlayingStream(stream.streamID);
+            videoElement.remove();
+            remoteStreamsRef.current.delete(stream.streamID);
+          }
+        });
       }
     };
 
-    initializeCall();
+    // Error handler
+    const handleEngineError = (errorCode, errorMessage) => {
+      console.error('Zego Engine Error:', { errorCode, errorMessage });
+      setError(`Engine error: ${errorCode} - ${errorMessage}`);
+    };
 
+    engine.on('roomStateUpdate', handleRoomStateUpdate);
+    engine.on('roomStreamUpdate', handleStreamUpdate);
+    engine.on('error', handleEngineError);
+    
     return () => {
-      if (zcInstanceRef.current) {
-        zcInstanceRef.current.destroy();
-        zcInstanceRef.current = null;
+      engine.off('roomStateUpdate', handleRoomStateUpdate);
+      engine.off('roomStreamUpdate', handleStreamUpdate);
+      engine.off('error', handleEngineError);
+    };
+  }, [appID]);
+
+  // Start/Stop video call with retry logic
+  useEffect(() => {
+    if (!zegoEngineRef.current) return;
+    
+    const engine = zegoEngineRef.current;
+    let activeCall = true;
+    currentRoomRef.current = roomID;
+    isCleaningUpRef.current = false;
+    
+    const startCall = async (retryCount = 0) => {
+      const maxRetries = 2;
+      
+      try {
+        console.log('Starting call with:', { roomID, userID, tokenLength: token.length });
+        
+        // Validate token first
+        validateToken(token);
+        
+        // Generate unique stream ID
+        const streamID = `${userID}_${Date.now()}`;
+        
+        // Get user media first
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 },
+            facingMode: 'user'
+          }, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true
+          }
+        });
+        
+        if (!activeCall) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        
+        localStreamRef.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
+        // Login to room with simplified configuration
+        console.log('Logging into room:', roomID);
+        await engine.loginRoom(
+          roomID,
+          token,
+          { 
+            userID: userID, 
+            userName: userID || `User_${Date.now()}` 
+          }
+          // Removed problematic room config object
+        );
+        
+        console.log('Successfully joined room, starting to publish stream:', streamID);
+        
+        // Wait a bit before publishing to ensure room connection is stable
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        if (!activeCall) return;
+        
+        // Start publishing stream with media constraints
+        await engine.startPublishingStream(streamID, stream, {
+          videoCodec: 'VP8',
+          width: 640,
+          height: 480,
+          bitrate: 1000
+        });
+        console.log('Successfully started publishing stream');
+
+        setConnectionState('connected');
+
+      } catch (error) {
+        if (!activeCall) return;
+        
+        console.error('Call setup error:', error);
+        
+        // Retry logic for specific errors
+        if (retryCount < maxRetries && (
+          error.code === 1102016 || // liveroom error
+          error.code === 50119 ||   // server error
+          error.message?.includes('network') ||
+          error.message?.includes('timeout')
+        )) {
+          console.log(`Retrying connection (attempt ${retryCount + 1}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+          return startCall(retryCount + 1);
+        }
+        
+        // Handle specific Zego error codes
+        let errorMessage = `Video call failed: ${error.message}`;
+        
+        if (error.code) {
+          switch (error.code) {
+            case 1102016:
+              errorMessage = 'Room service temporarily unavailable. Please try again.';
+              break;
+            case 1102003:
+            case 20014:
+              errorMessage = 'Authentication failed. Please refresh and try again.';
+              break;
+            case 50119:
+              errorMessage = 'Server temporarily unavailable. Please try again later.';
+              break;
+            case 1102001:
+              errorMessage = 'Invalid configuration. Please contact support.';
+              break;
+            default:
+              errorMessage = `Connection error (${error.code}): ${error.message}`;
+          }
+        }
+        
+        setError(errorMessage);
+        setConnectionState('failed');
+        
+        // Cleanup on error
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+          localStreamRef.current = null;
+        }
       }
     };
-  }, [roomId, userId, userName, isMobile]);
 
-  // Error state
+    startCall();
+
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up video call');
+      activeCall = false;
+      isCleaningUpRef.current = true;
+      
+      // Clean remote streams
+      remoteStreamsRef.current.forEach((element, streamID) => {
+        try {
+          engine.stopPlayingStream(streamID);
+          element.remove();
+        } catch (err) {
+          console.warn('Error stopping remote stream:', err);
+        }
+      });
+      remoteStreamsRef.current.clear();
+
+      // Stop publishing and leave room
+      if (engine && currentRoomRef.current) {
+        try {
+          engine.stopPublishingStream();
+          engine.logoutRoom(currentRoomRef.current);
+        } catch (err) {
+          console.warn('Error during room logout:', err);
+        }
+      }
+
+      // Stop local media
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+
+      // Reset video elements
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      
+      currentRoomRef.current = null;
+    };
+  }, [token, roomID, userID]);
+
   if (error) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-red-900 to-black flex items-center justify-center text-white">
-        <div className="text-center max-w-md p-4">
-          <h3 className="text-xl font-semibold mb-2">Connection Failed</h3>
-          <p className="text-red-300 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 rounded-lg text-white hover:bg-red-700 transition"
-          >
-            Retry
-          </button>
-        </div>
+      <div style={styles.errorContainer}>
+        <h3 style={styles.errorHeading}>Connection Error</h3>
+        <p style={styles.errorMessage}>{error}</p>
+        <p style={styles.errorDetails}>
+          Room: {roomID}<br/>
+          User: {userID}<br/>
+          State: {connectionState}
+        </p>
+        <button 
+          style={styles.reloadButton}
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Mobile call status bar */}
-      {isMobile && callStarted && (
-        <div className="absolute top-0 left-0 right-0 z-50 bg-black bg-opacity-70 text-white p-3 text-center">
-          <p className="truncate">Connected to: {roomId}</p>
+    <div style={styles.container}>
+      {/* Connection status */}
+      {connectionState !== 'connected' && (
+        <div style={styles.statusOverlay}>
+          <p style={styles.statusText}>
+            {connectionState === 'connecting' ? 'Connecting...' : 
+             connectionState === 'failed' ? 'Connection Failed' :
+             'Disconnected'}
+          </p>
         </div>
       )}
-
-      <div
-        ref={containerRef}
-        className={`flex-1 w-full h-full ${isMobile ? 'pt-10 pb-20' : ''}`}
-      />
-
-      {/* Mobile control bar overlay */}
-      {isMobile && callStarted && (
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-black bg-opacity-80 flex items-center justify-center space-x-8">
-          {/* Controls will be automatically injected here by Zego SDK */}
-        </div>
-      )}
-
-      {/* {isJoining && (
-        <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white text-lg font-medium">Joining room...</p>
-            <p className="text-gray-400 mt-2">This may take a few seconds</p>
+      
+      {/* Remote video container */}
+      <div ref={remoteVideoRef} style={styles.remoteContainer}>
+        {remoteStreamsRef.current.size === 0 && connectionState === 'connected' && (
+          <div style={styles.waitingMessage}>
+            <p>Waiting for other participant...</p>
           </div>
-        </div>
-      )} */}
+        )}
+      </div>
+      
+      {/* Local video preview */}
+      <div style={styles.localPreview}>
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          style={styles.localVideo}
+        />
+      </div>
     </div>
   );
-}
+};
+
+// Styles
+const styles = {
+  container: {
+    position: 'relative',
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: '#000',
+    overflow: 'hidden'
+  },
+  remoteContainer: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  localPreview: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: '25vw',
+    height: '25vh',
+    minWidth: 160,
+    minHeight: 120,
+    zIndex: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+    backgroundColor: '#333'
+  },
+  localVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    transform: 'rotateY(180deg)',
+    backgroundColor: '#333'
+  },
+  statusOverlay: {
+    position: 'absolute',
+    top: 20,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: '10px 20px',
+    borderRadius: 20,
+    color: 'white'
+  },
+  statusText: {
+    margin: 0,
+    fontSize: 14,
+    fontWeight: 'bold'
+  },
+  waitingMessage: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 18
+  },
+  errorContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    flexDirection: 'column',
+    padding: 20,
+    textAlign: 'center',
+    backgroundColor: '#000',
+    color: 'white'
+  },
+  errorHeading: {
+    color: '#e74c3c',
+    marginBottom: 10
+  },
+  errorMessage: {
+    fontSize: 16,
+    marginBottom: 10,
+    maxWidth: 400
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: '#bbb',
+    marginBottom: 20,
+    fontFamily: 'monospace'
+  },
+  reloadButton: {
+    marginTop: 20,
+    padding: '12px 24px',
+    background: '#3498db',
+    color: 'white',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 16,
+    fontWeight: 'bold'
+  }
+};
 
 export default VideoCall;

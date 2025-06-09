@@ -2,16 +2,20 @@ import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Video, Users, Loader2, Wifi, WifiOff, X } from "lucide-react"
 import useAuthStore from "../../../Stores/AuthStore"
-import useThemeStore from "../../../Stores/ThemeStore"
 import VideoCall from "./VideoCall"
+import useThemeStore from "../../../Stores/ThemeStore"
+import React from "react"
 
 const RandomConnector = () => {
     const [roomId, setRoomId] = useState("")
     const [userId, setUserId] = useState("")
+    const [ roomName,setRoomName ] = useState("");
+    const [ token,setToken ] = useState("");
+    const [ joinUrl,setJoinUrl ] = useState(null);
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectionStatus, setConnectionStatus] = useState("disconnected") // disconnected, connecting, connected, error
     const [error, setError] = useState("")
-    
+
     const backendData = useAuthStore((state) => state.backendData)
     const darkMode = useThemeStore((state) => state.darkMode)
     const socketRef = useRef(null)
@@ -21,34 +25,37 @@ const RandomConnector = () => {
         const initSocket = () => {
             try {
                 socketRef.current = new WebSocket("ws://localhost:9000")
-                
+
                 socketRef.current.onopen = () => {
                     setConnectionStatus("connected")
                     setError("")
                 }
-                
+
                 socketRef.current.onclose = () => {
                     setConnectionStatus("disconnected")
                     setIsConnecting(false)
                 }
-                
+
                 socketRef.current.onerror = (error) => {
                     setConnectionStatus("error")
                     setError("Connection failed. Please try again.")
                     setIsConnecting(false)
                 }
-                
+
                 socketRef.current.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data)
                         console.log("Received data:", data)
                         
                         // Handle successful room assignment
-                        if (data.type === "room_assigned" && data.roomId) {
-                            setRoomId(data.roomId)
+                        if (data.type === 'match_found') {
+                            setRoomId(data.room)
                             setIsConnecting(false)
+                            setToken(data.token)
+                            console.log(data.token);
+                            
                             setError("")
-                        } 
+                        }
                         // Handle queued status
                         else if (data.type === "queued") {
                             // Keep connecting state, user is in queue
@@ -106,12 +113,13 @@ const RandomConnector = () => {
             setIsConnecting(true)
             setError("")
             setUserId(backendData.firebaseUid)
-            
+
             console.log(backendData.firebaseUid);
-            
+
             socketRef.current.send(JSON.stringify({
                 type: "join",
-                interests: backendData.interests || []
+                interests: backendData.interests || [],
+                id:backendData.firebaseUid
             }))
         } else {
             setError("Connection not available. Please refresh and try again.")
@@ -152,8 +160,8 @@ const RandomConnector = () => {
         cardBg: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
         text: darkMode ? 'text-white' : 'text-gray-900',
         textSecondary: darkMode ? 'text-gray-300' : 'text-gray-600',
-        button: darkMode 
-            ? 'bg-violet-600 hover:bg-violet-700 focus:ring-violet-500' 
+        button: darkMode
+            ? 'bg-violet-600 hover:bg-violet-700 focus:ring-violet-500'
             : 'bg-violet-600 hover:bg-violet-700 focus:ring-violet-500',
         buttonSecondary: darkMode
             ? 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200'
@@ -245,7 +253,7 @@ const RandomConnector = () => {
                                     </div>
                                 </div>
                             )}
-                            
+
                             {/* Action Buttons */}
                             <div className="space-y-3">
                                 {!isConnecting ? (
@@ -293,10 +301,11 @@ const RandomConnector = () => {
                         className="relative h-screen w-full"
                     >
                         {/* Video Call Component */}
-                        <VideoCall roomId={roomId} userId={userId} setRoomId={ setRoomId } setUserId={ setUserId }/>
+
                     </motion.div>
                 )}
             </AnimatePresence>
+           <VideoCall token={token} roomID={roomId} userID={userId}/>
         </div>
     )
 }
