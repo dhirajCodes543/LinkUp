@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Video, Users, Loader2, Wifi, WifiOff, X } from "lucide-react"
 import useAuthStore from "../../../Stores/AuthStore"
-import VideoCall from "./VideoCall"
+import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
 import useThemeStore from "../../../Stores/ThemeStore"
-import React from "react"
-
+const AblyChat = React.lazy(() => import('./VideoCall'));
 const RandomConnector = () => {
     const [roomId, setRoomId] = useState("")
     const [userId, setUserId] = useState("")
-    const [ roomName,setRoomName ] = useState("");
-    const [ token,setToken ] = useState("");
-    const [ joinUrl,setJoinUrl ] = useState(null);
+    const [enable, setEnable] = useState(false);
+    const [roomName, setRoomName] = useState("");
+    const [token, setToken] = useState("");
+    const [joinUrl, setJoinUrl] = useState(null);
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectionStatus, setConnectionStatus] = useState("disconnected") // disconnected, connecting, connected, error
     const [error, setError] = useState("")
@@ -46,14 +45,16 @@ const RandomConnector = () => {
                     try {
                         const data = JSON.parse(event.data)
                         console.log("Received data:", data)
-                        
+
                         // Handle successful room assignment
                         if (data.type === 'match_found') {
+                            console.log(data);
+                            setEnable(!enable)
                             setRoomId(data.room)
                             setIsConnecting(false)
                             setToken(data.token)
-                            console.log(data.token);
-                            
+                            // console.log(data.token);
+
                             setError("")
                         }
                         // Handle queued status
@@ -119,7 +120,7 @@ const RandomConnector = () => {
             socketRef.current.send(JSON.stringify({
                 type: "join",
                 interests: backendData.interests || [],
-                id:backendData.firebaseUid
+                id: backendData.firebaseUid
             }))
         } else {
             setError("Connection not available. Please refresh and try again.")
@@ -172,141 +173,144 @@ const RandomConnector = () => {
     const showVideoCall = roomId && userId
 
     return (
-        <div className={`min-h-screen w-full transition-colors duration-300 ${themeClasses.bg}`}>
-            <AnimatePresence mode="wait">
-                {!showVideoCall ? (
-                    <motion.div
-                        key="connector"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="flex flex-col items-center justify-center min-h-screen p-4"
-                    >
-                        <div className={`w-full max-w-md mx-auto rounded-2xl border shadow-xl p-8 ${themeClasses.cardBg}`}>
-                            {/* Header */}
-                            <div className="text-center mb-8">
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="mx-auto w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mb-4"
-                                >
-                                    <Video className="w-8 h-8 text-white" />
-                                </motion.div>
-                                <h1 className={`text-2xl font-bold mb-2 ${themeClasses.text}`}>
-                                    Random Video Chat
-                                </h1>
-                                <p className={`${themeClasses.textSecondary}`}>
-                                    Connect with random people based on your interests
-                                </p>
-                            </div>
-
-                            {/* Connection Status */}
-                            <div className="flex items-center justify-center gap-2 mb-6">
-                                {getStatusIcon()}
-                                <span className={`text-sm ${themeClasses.textSecondary}`}>
-                                    {connectionStatus === "connected" && "Connected"}
-                                    {connectionStatus === "connecting" && "Connecting..."}
-                                    {connectionStatus === "disconnected" && "Disconnected"}
-                                    {connectionStatus === "error" && "Connection Error"}
-                                </span>
-                            </div>
-
-                            {/* Error Message */}
-                            <AnimatePresence>
-                                {error && (
+        <>
+            <div className={`min-h-screen w-full transition-colors duration-300 ${themeClasses.bg}`}>
+                <AnimatePresence mode="wait">
+                    {!showVideoCall ? (
+                        <motion.div
+                            key="connector"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex flex-col items-center justify-center min-h-screen p-4"
+                        >
+                            <div className={`w-full max-w-md mx-auto rounded-2xl border shadow-xl p-8 ${themeClasses.cardBg}`}>
+                                {/* Header */}
+                                <div className="text-center mb-8">
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-6"
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="mx-auto w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mb-4"
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-red-600 dark:text-red-400 text-sm">
-                                                {error}
-                                            </p>
-                                            <button
-                                                onClick={clearErrorAndRetry}
-                                                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                        <Video className="w-8 h-8 text-white" />
                                     </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            {/* User Interests */}
-                            {backendData?.interests?.length > 0 && (
-                                <div className="mb-6">
-                                    <p className={`text-sm font-medium mb-2 ${themeClasses.text}`}>
-                                        Your interests:
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {backendData.interests.map((interest, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 text-xs rounded-full bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200 shadow-sm transition-colors duration-200"
-                                            >
-                                                {interest}
-                                            </span>
-                                        ))}
-                                    </div>
+                                    <h1 className={`text-2xl font-bold mb-2 ${themeClasses.text}`}>
+                                        Random Chat
+                                    </h1>
+                                    <h3 className={`${themeClasses.textSecondary}`}>
+                                        Connect with random people based on your interests
+                                    </h3>
                                 </div>
-                            )}
 
-                            {/* Action Buttons */}
-                            <div className="space-y-3">
-                                {!isConnecting ? (
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={requestRandomMatch}
-                                        disabled={connectionStatus !== "connected"}
-                                        className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${themeClasses.button}`}
-                                    >
-                                        <Users className="w-5 h-5" />
-                                        Start Random Chat
-                                    </motion.button>
-                                ) : (
-                                    <div className="space-y-3">
+                                {/* Connection Status */}
+                                <div className="flex items-center justify-center gap-2 mb-6">
+                                    {getStatusIcon()}
+                                    <span className={`text-sm ${themeClasses.textSecondary}`}>
+                                        {connectionStatus === "connected" && "Connected"}
+                                        {connectionStatus === "connecting" && "Connecting..."}
+                                        {connectionStatus === "disconnected" && "Disconnected"}
+                                        {connectionStatus === "error" && "Connection Error"}
+                                    </span>
+                                </div>
+
+                                {/* Error Message */}
+                                <AnimatePresence>
+                                    {error && (
                                         <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="text-center"
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-6"
                                         >
-                                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-violet-600" />
-                                            <p className={`text-sm ${themeClasses.textSecondary}`}>
-                                                Searching for a match...
-                                            </p>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-red-600 dark:text-red-400 text-sm">
+                                                    {error}
+                                                </p>
+                                                <button
+                                                    onClick={clearErrorAndRetry}
+                                                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* User Interests */}
+                                {backendData?.interests?.length > 0 && (
+                                    <div className="mb-6">
+                                        <p className={`text-sm font-medium mb-2 ${themeClasses.text}`}>
+                                            Your interests:
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {backendData.interests.map((interest, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="px-2 py-1 text-xs rounded-full bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200 shadow-sm transition-colors duration-200"
+                                                >
+                                                    {interest}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="space-y-3">
+                                    {!isConnecting ? (
                                         <motion.button
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
-                                            onClick={cancelSearch}
-                                            className={`w-full py-2 px-4 rounded-xl border font-medium transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 ${themeClasses.buttonSecondary}`}
+                                            onClick={requestRandomMatch}
+                                            disabled={connectionStatus !== "connected"}
+                                            className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${themeClasses.button}`}
                                         >
-                                            Cancel Search
+                                            <Users className="w-5 h-5" />
+                                            Start Random Chat
                                         </motion.button>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="text-center"
+                                            >
+                                                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-violet-600" />
+                                                <p className={`text-sm ${themeClasses.textSecondary}`}>
+                                                    Searching for a match...
+                                                </p>
+                                            </motion.div>
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={cancelSearch}
+                                                className={`w-full py-2 px-4 rounded-xl border font-medium transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 ${themeClasses.buttonSecondary}`}
+                                            >
+                                                Cancel Search
+                                            </motion.button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="videocall"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="relative h-screen w-full"
-                    >
-                        {/* Video Call Component */}
-
-                    </motion.div>
-                )}
-            </AnimatePresence>
-           <VideoCall token={token} roomID={roomId} userID={userId}/>
-        </div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="videocall"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="relative h-screen w-full"
+                        >
+                            {/* Video Call Component */}
+                            <Suspense fallback={<div className="p-8 text-center text-gray-400">Loading chat…</div>}>
+                                <AblyChat token={token} clientId={userId} room={roomId} />
+                            </Suspense>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </>
     )
 }
 

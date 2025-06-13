@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import generateZegoToken from './services/zego-token.js';
+import generateToken from './services/roomGeneration.js';
 
 const waitingClients = [];
 
@@ -44,7 +44,7 @@ const startWebSocketServer = (server) => {
         }
 
         const newInterests = data.interests.map(i => String(i).trim().toLowerCase());
-        const clientId = data.id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const clientId = data.id ;
 
         // Try to find a match
         const matchIndex = waitingClients.findIndex(client =>
@@ -59,8 +59,8 @@ const startWebSocketServer = (server) => {
           try {
             const roomName = `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
-            const tokenA = generateZegoToken(clientId);
-            const tokenB = generateZegoToken(matchedClient.id);
+            const tokenA = await generateToken(clientId);
+            const tokenB = await generateToken(matchedClient.id);
 
             // 2. Prepare payloads
             const payloadA = JSON.stringify({

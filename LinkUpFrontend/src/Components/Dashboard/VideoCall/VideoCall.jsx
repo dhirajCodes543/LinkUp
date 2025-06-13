@@ -1,488 +1,283 @@
-import { ZegoExpressEngine } from 'zego-express-engine-webrtc';
-import { useEffect, useRef, useState } from 'react';
+// AblyChat.jsx  ───────────────────────────────────────────────────────────
+//
+// Same props & behaviour as before.
+// 1. Icons are lazy‑loaded.
+// 2. Ably SDK is imported dynamically inside useEffect.
+// ────────────────────────────────────────────────────────────────────────
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import useThemeStore from "../../../Stores/ThemeStore";
 
-const VideoCall = ({ token, roomID, userID }) => {
-  if (!roomID || !token || !userID) return null;
-  
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const zegoEngineRef = useRef(null);
-  const localStreamRef = useRef(null);
-  const remoteStreamsRef = useRef(new Map());
-  const [error, setError] = useState(null);
-  const [connectionState, setConnectionState] = useState('connecting');
-  const currentRoomRef = useRef(null);
-  const isCleaningUpRef = useRef(false);
-  
-  // Replace with your actual App ID
-  const appID = 2049494275;
+/* ── 1️⃣  lazy‑load ONLY the icons you use ────────────────────────────── */
+const FaPaperPlane  = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaPaperPlane  })));
+const FaCircle      = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCircle      })));
+const FaMoon        = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaMoon        })));
+const FaSun         = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSun         })));
+const FaSignOutAlt  = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSignOutAlt  })));
+const FaExpand      = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaExpand      })));
+const FaCompress    = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCompress    })));
 
-  // Token validation helper
-  const validateToken = (token) => {
-    if (!token || typeof token !== 'string') {
-      throw new Error('Invalid token format');
-    }
-    if (token.length < 10) {
-      throw new Error('Token appears to be too short');
-    }
-    // Add more validation as needed
-    return true;
-  };
+export default function AblyChat({
+  token,
+  clientId,
+  room,
+  userPhoto = null,
+  userName = "Test User",
+  collegeName = "Demo College",
+  isOnline = true,
+  onLeave = () => {},
+}) {
+  /* ── state & refs (unchanged) ──────────────────────────────────────── */
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+const { darkMode, toggleDarkMode } = useThemeStore();
+  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Initialize Zego Engine
+  const ablyRef    = useRef(null);
+  const channelRef = useRef(null);
+  const logRef     = useRef(null);
+  const inputRef   = useRef(null);
+
+  /* ── 2️⃣  load Ably SDK only when component mounts ─────────────────── */
   useEffect(() => {
-    if (!appID || isNaN(appID)) {
-      setError('Invalid Zego App ID');
-      return;
-    }
+    if (!token || !clientId || !room) return;
+
+    let isMounted = true;
+
+    (async () => {
+      const AblyMod = await import("ably");            // <─ dynamic import
+      if (!isMounted) return;
+
+      const ably = new AblyMod.default.Realtime({
+        token,
+        clientId,
+        disconnectedRetryTimeout: 30_000,
+        suspendedRetryTimeout: 30_000,
+      });
+      ablyRef.current = ably;
+
+      const channel = ably.channels.get(room);
+      channelRef.current = channel;
+
+      ably.connection.on("connected", () => setIsConnected(true));
+      ably.connection.on("disconnected", () => setIsConnected(false));
+
+      channel.subscribe("chat", ({ data, clientId: sender, timestamp }) => {
+        if (sender === clientId) return;
+        const id = `${sender}-${timestamp || Date.now()}`;
+        setMessages((prev) => [
+          ...prev,
+          { me: false, text: data, id, senderId: sender, timestamp },
+        ]);
+      });
+
+      channel.presence.enter({ userName, status: "online" });
+    })();
+
+    return () => {
+      isMounted = false;
+      ablyRef.current?.close?.();
+    };
+  }, [token, clientId, room, userName]);
+
+  /* ── send message (unchanged) ──────────────────────────────────────── */
+  const send = async () => {
+    const text = input.trim();
+    if (!text || !channelRef.current || !isConnected) return;
+
+    const timestamp = Date.now();
+    setMessages((prev) => [
+      ...prev,
+      { me: true, text, id: `${clientId}-${timestamp}`, timestamp },
+    ]);
+    setInput("");
 
     try {
-      if (!zegoEngineRef.current) {
-        console.log('Initializing Zego Engine with App ID:', appID);
-        // Add scenario config for better connection
-        zegoEngineRef.current = new ZegoExpressEngine(appID, {
-          scenario: {
-            mode: 'General', // or 'Communication' for 1-on-1 calls
-            codec: 'VP8'
-          }
-        });
-      }
+      await channelRef.current.publish("chat", text);
     } catch (err) {
-      setError('Failed to initialize video engine');
-      console.error('Engine initialization error:', err);
-      return;
+      console.error("Sending error:", err);
     }
+  };
 
-    const engine = zegoEngineRef.current;
-    
-    // Room state change handler with better error mapping
-    const handleRoomStateUpdate = (roomID, state, errorCode, extendedData) => {
-      console.log('Room state update:', { roomID, state, errorCode, extendedData });
-      
-      if (errorCode !== 0) {
-        console.error('Room connection error:', errorCode);
-        
-        let errorMessage = 'Connection failed';
-        switch (errorCode) {
-          case 1102016:
-            errorMessage = 'Room service error. Please check your configuration and try again.';
-            break;
-          case 1102001:
-            errorMessage = 'Invalid App ID or configuration.';
-            break;
-          case 1102003:
-            errorMessage = 'Authentication failed. Invalid token.';
-            break;
-          case 1102014:
-            errorMessage = 'Room capacity exceeded.';
-            break;
-          default:
-            errorMessage = `Room connection failed (${errorCode}): ${extendedData || 'Unknown error'}`;
-        }
-        
-        setError(errorMessage);
-        setConnectionState('failed');
-      } else {
-        switch (state) {
-          case 'CONNECTED':
-            setConnectionState('connected');
-            setError(null);
-            break;
-          case 'CONNECTING':
-            setConnectionState('connecting');
-            break;
-          case 'DISCONNECTED':
-            setConnectionState('disconnected');
-            break;
-        }
-      }
-    };
-    
-    const handleStreamUpdate = (updateRoomID, updateType, streamList) => {
-      if (updateRoomID !== currentRoomRef.current || isCleaningUpRef.current) return;
-      
-      console.log('Stream update:', { updateRoomID, updateType, streamList });
-      
-      if (updateType === 'ADD') {
-        streamList.forEach(stream => {
-          if (remoteStreamsRef.current.has(stream.streamID)) return;
-
-          console.log('Adding remote stream:', stream.streamID);
-          
-          const videoElement = document.createElement('video');
-          videoElement.autoplay = true;
-          videoElement.playsInline = true;
-          videoElement.className = 'remote-video';
-          videoElement.style.width = '100%';
-          videoElement.style.height = '100%';
-          videoElement.style.objectFit = 'cover';
-          
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.appendChild(videoElement);
-          }
-          
-          engine.playStream(stream.streamID, { video: videoElement })
-            .then(() => {
-              console.log('Successfully playing stream:', stream.streamID);
-            })
-            .catch(err => {
-              console.error('Play stream error:', err);
-              videoElement.remove();
-            });
-          
-          remoteStreamsRef.current.set(stream.streamID, videoElement);
-        });
-      } else if (updateType === 'DELETE') {
-        streamList.forEach(stream => {
-          const videoElement = remoteStreamsRef.current.get(stream.streamID);
-          if (videoElement) {
-            console.log('Removing remote stream:', stream.streamID);
-            engine.stopPlayingStream(stream.streamID);
-            videoElement.remove();
-            remoteStreamsRef.current.delete(stream.streamID);
-          }
-        });
-      }
-    };
-
-    // Error handler
-    const handleEngineError = (errorCode, errorMessage) => {
-      console.error('Zego Engine Error:', { errorCode, errorMessage });
-      setError(`Engine error: ${errorCode} - ${errorMessage}`);
-    };
-
-    engine.on('roomStateUpdate', handleRoomStateUpdate);
-    engine.on('roomStreamUpdate', handleStreamUpdate);
-    engine.on('error', handleEngineError);
-    
-    return () => {
-      engine.off('roomStateUpdate', handleRoomStateUpdate);
-      engine.off('roomStreamUpdate', handleStreamUpdate);
-      engine.off('error', handleEngineError);
-    };
-  }, [appID]);
-
-  // Start/Stop video call with retry logic
+  /* ── auto‑resize textarea (unchanged) ──────────────────────────────── */
   useEffect(() => {
-    if (!zegoEngineRef.current) return;
-    
-    const engine = zegoEngineRef.current;
-    let activeCall = true;
-    currentRoomRef.current = roomID;
-    isCleaningUpRef.current = false;
-    
-    const startCall = async (retryCount = 0) => {
-      const maxRetries = 2;
-      
-      try {
-        console.log('Starting call with:', { roomID, userID, tokenLength: token.length });
-        
-        // Validate token first
-        validateToken(token);
-        
-        // Generate unique stream ID
-        const streamID = `${userID}_${Date.now()}`;
-        
-        // Get user media first
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 640 }, 
-            height: { ideal: 480 },
-            facingMode: 'user'
-          }, 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true
-          }
-        });
-        
-        if (!activeCall) {
-          stream.getTracks().forEach(track => track.stop());
-          return;
-        }
-        
-        localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = `${Math.min(
+        inputRef.current.scrollHeight,
+        150
+      )}px`;
+    }
+  }, [input]);
 
-        // Login to room with simplified configuration
-        console.log('Logging into room:', roomID);
-        await engine.loginRoom(
-          roomID,
-          token,
-          { 
-            userID: userID, 
-            userName: userID || `User_${Date.now()}` 
-          }
-          // Removed problematic room config object
-        );
-        
-        console.log('Successfully joined room, starting to publish stream:', streamID);
-        
-        // Wait a bit before publishing to ensure room connection is stable
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        if (!activeCall) return;
-        
-        // Start publishing stream with media constraints
-        await engine.startPublishingStream(streamID, stream, {
-          videoCodec: 'VP8',
-          width: 640,
-          height: 480,
-          bitrate: 1000
-        });
-        console.log('Successfully started publishing stream');
+  /* ── scroll to bottom when messages change ─────────────────────────── */
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [messages]);
 
-        setConnectionState('connected');
+  /* ── UI helpers (unchanged) ────────────────────────────────────────── */
+  const toggleFullscreen = () => setIsFullscreen((f) => !f);
 
-      } catch (error) {
-        if (!activeCall) return;
-        
-        console.error('Call setup error:', error);
-        
-        // Retry logic for specific errors
-        if (retryCount < maxRetries && (
-          error.code === 1102016 || // liveroom error
-          error.code === 50119 ||   // server error
-          error.message?.includes('network') ||
-          error.message?.includes('timeout')
-        )) {
-          console.log(`Retrying connection (attempt ${retryCount + 1}/${maxRetries + 1})`);
-          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
-          return startCall(retryCount + 1);
-        }
-        
-        // Handle specific Zego error codes
-        let errorMessage = `Video call failed: ${error.message}`;
-        
-        if (error.code) {
-          switch (error.code) {
-            case 1102016:
-              errorMessage = 'Room service temporarily unavailable. Please try again.';
-              break;
-            case 1102003:
-            case 20014:
-              errorMessage = 'Authentication failed. Please refresh and try again.';
-              break;
-            case 50119:
-              errorMessage = 'Server temporarily unavailable. Please try again later.';
-              break;
-            case 1102001:
-              errorMessage = 'Invalid configuration. Please contact support.';
-              break;
-            default:
-              errorMessage = `Connection error (${error.code}): ${error.message}`;
-          }
-        }
-        
-        setError(errorMessage);
-        setConnectionState('failed');
-        
-        // Cleanup on error
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(track => track.stop());
-          localStreamRef.current = null;
-        }
-      }
-    };
-
-    startCall();
-
-    // Cleanup function
-    return () => {
-      console.log('Cleaning up video call');
-      activeCall = false;
-      isCleaningUpRef.current = true;
-      
-      // Clean remote streams
-      remoteStreamsRef.current.forEach((element, streamID) => {
-        try {
-          engine.stopPlayingStream(streamID);
-          element.remove();
-        } catch (err) {
-          console.warn('Error stopping remote stream:', err);
-        }
-      });
-      remoteStreamsRef.current.clear();
-
-      // Stop publishing and leave room
-      if (engine && currentRoomRef.current) {
-        try {
-          engine.stopPublishingStream();
-          engine.logoutRoom(currentRoomRef.current);
-        } catch (err) {
-          console.warn('Error during room logout:', err);
-        }
-      }
-
-      // Stop local media
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-        localStreamRef.current = null;
-      }
-
-      // Reset video elements
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
-      
-      currentRoomRef.current = null;
-    };
-  }, [token, roomID, userID]);
-
-  if (error) {
-    return (
-      <div style={styles.errorContainer}>
-        <h3 style={styles.errorHeading}>Connection Error</h3>
-        <p style={styles.errorMessage}>{error}</p>
-        <p style={styles.errorDetails}>
-          Room: {roomID}<br/>
-          User: {userID}<br/>
-          State: {connectionState}
-        </p>
-        <button 
-          style={styles.reloadButton}
-          onClick={() => window.location.reload()}
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
+  /* ── rendering ------------------------------------------------------- */
   return (
-    <div style={styles.container}>
-      {/* Connection status */}
-      {connectionState !== 'connected' && (
-        <div style={styles.statusOverlay}>
-          <p style={styles.statusText}>
-            {connectionState === 'connecting' ? 'Connecting...' : 
-             connectionState === 'failed' ? 'Connection Failed' :
-             'Disconnected'}
-          </p>
-        </div>
-      )}
-      
-      {/* Remote video container */}
-      <div ref={remoteVideoRef} style={styles.remoteContainer}>
-        {remoteStreamsRef.current.size === 0 && connectionState === 'connected' && (
-          <div style={styles.waitingMessage}>
-            <p>Waiting for other participant...</p>
+    /* Wrap everything in <Suspense> so lazy icons render safely */
+    <Suspense fallback={<div className="p-4 text-center">Loading UI…</div>}>
+      <div
+        className={`flex flex-col ${
+          isFullscreen ? "fixed inset-0 z-50" : "h-screen max-w-4xl mx-auto"
+        } ${darkMode ? "bg-gray-900" : "bg-blue-50"}`}
+      >
+        {/* header ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className={`p-4 flex items-center justify-between border-b ${
+            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+          }`}
+        >
+          {/* avatar + status */}
+          <div className="flex items-center space-x-3">
+            {userPhoto ? (
+              <img
+                src={userPhoto}
+                alt={userName}
+                className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <h2 className="font-semibold text-lg">
+                {userName}
+              </h2>
+              <p className="text-sm flex items-center gap-1">
+                <FaCircle
+                  className={`w-2 h-2 ${
+                    isConnected ? "text-green-500" : "text-red-500"
+                  }`}
+                />
+                {isConnected ? "Connected" : "Disconnected"}
+              </p>
+            </div>
           </div>
-        )}
+
+          {/* header buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={toggleDarkMode}
+              className={`p-2 rounded-full ${
+                darkMode ? "bg-yellow-500 text-white" : "bg-gray-200 text-gray-600"
+              }`}
+              title="Toggle theme"
+            >
+              {darkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              className={`p-2 rounded-full ${
+                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-600"
+              }`}
+              title="Fullscreen"
+            >
+              {isFullscreen ? <FaCompress size={16} /> : <FaExpand size={16} />}
+            </button>
+
+            <button
+              onClick={onLeave}
+              className="p-2 rounded-full bg-red-500 text-white"
+              title="Leave chat"
+            >
+              <FaSignOutAlt size={16} />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* messages ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        <div
+          ref={logRef}
+          className="flex-1 overflow-y-auto p-4 space-y-3"
+        >
+          <AnimatePresence>
+            {messages.map((m, i) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, delay: i * 0.02 }}
+                className={`flex ${m.me ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-lg px-4 py-3 rounded-2xl ${
+                    m.me
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                      : darkMode
+                      ? "bg-gray-700 text-gray-100"
+                      : "bg-white text-gray-800"
+                  }`}
+                >
+                  {m.text}
+                  <p className="text-xs mt-1 opacity-70">
+                    {new Date(m.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* composer ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className={`border-t p-4 ${
+            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+          }`}
+        >
+          <div className="flex items-end space-x-3">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())
+              }
+              rows={1}
+              placeholder="Type your message..."
+              className={`flex-1 resize-none p-3 rounded-2xl focus:outline-none ${
+                darkMode
+                  ? "bg-gray-700 text-white placeholder-gray-400"
+                  : "bg-gray-100 text-gray-800 placeholder-gray-500"
+              }`}
+              style={{ minHeight: "56px", maxHeight: "150px" }}
+            />
+            <button
+              onClick={send}
+              disabled={!input.trim() || !isConnected}
+              className={`p-3 rounded-full flex-shrink-0 ${
+                input.trim() && isConnected
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              <FaPaperPlane />
+            </button>
+          </div>
+        </motion.div>
       </div>
-      
-      {/* Local video preview */}
-      <div style={styles.localPreview}>
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          style={styles.localVideo}
-        />
-      </div>
-    </div>
+    </Suspense>
   );
-};
-
-// Styles
-const styles = {
-  container: {
-    position: 'relative',
-    width: '100vw',
-    height: '100vh',
-    backgroundColor: '#000',
-    overflow: 'hidden'
-  },
-  remoteContainer: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative'
-  },
-  localPreview: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: '25vw',
-    height: '25vh',
-    minWidth: 160,
-    minHeight: 120,
-    zIndex: 10,
-    borderRadius: 8,
-    overflow: 'hidden',
-    boxShadow: '0 0 10px rgba(0,0,0,0.5)',
-    backgroundColor: '#333'
-  },
-  localVideo: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    transform: 'rotateY(180deg)',
-    backgroundColor: '#333'
-  },
-  statusOverlay: {
-    position: 'absolute',
-    top: 20,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: 20,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    padding: '10px 20px',
-    borderRadius: 20,
-    color: 'white'
-  },
-  statusText: {
-    margin: 0,
-    fontSize: 14,
-    fontWeight: 'bold'
-  },
-  waitingMessage: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 18
-  },
-  errorContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    flexDirection: 'column',
-    padding: 20,
-    textAlign: 'center',
-    backgroundColor: '#000',
-    color: 'white'
-  },
-  errorHeading: {
-    color: '#e74c3c',
-    marginBottom: 10
-  },
-  errorMessage: {
-    fontSize: 16,
-    marginBottom: 10,
-    maxWidth: 400
-  },
-  errorDetails: {
-    fontSize: 12,
-    color: '#bbb',
-    marginBottom: 20,
-    fontFamily: 'monospace'
-  },
-  reloadButton: {
-    marginTop: 20,
-    padding: '12px 24px',
-    background: '#3498db',
-    color: 'white',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontSize: 16,
-    fontWeight: 'bold'
-  }
-};
-
-export default VideoCall;
+}

@@ -72,11 +72,6 @@ const LinkUpLanding = () => {
       description: "Private messaging with end-to-end encryption"
     },
     {
-      icon: <LuPhone className="w-8 h-8" />,
-      title: "Voice Calls",
-      description: "High-quality voice calls for deeper conversations"
-    },
-    {
       icon: <Shield className="w-8 h-8" />,
       title: "Safe Environment",
       description: "Verified student community with moderation"
@@ -116,6 +111,9 @@ const LinkUpLanding = () => {
       setTimeout(() => {
         navigate('/userinfo');
       }, 1500);
+    }
+    else {
+      navigate('/chat');
     }
   };
 
@@ -342,10 +340,6 @@ const LinkUpLanding = () => {
                 <span>{isLoggedIn ? 'Start Chatting' : 'Get Started'}</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
-
-              <button className={`px-8 py-4 rounded-xl text-lg font-semibold border-2 transition-all duration-300 hover:scale-105 ${darkMode ? 'border-gray-600 hover:bg-gray-800 hover:border-gray-500 text-gray-300' : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700'}`}>
-                How It Works
-              </button>
             </motion.div>
 
             <motion.div
@@ -378,14 +372,6 @@ const LinkUpLanding = () => {
                 </div>
 
                 {/* Voice Call Button */}
-                <div className="flex items-center gap-3 justify-center pt-4">
-                  <div className="p-3 rounded-full bg-green-600 animate-pulse shadow-lg">
-                    <LuPhone className="w-6 h-6 text-white" />
-                  </div>
-                  <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Active voice call - 12:45
-                  </span>
-                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -408,7 +394,7 @@ const LinkUpLanding = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}

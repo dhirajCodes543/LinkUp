@@ -1,94 +1,72 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Home, LogOut, Moon, Sun } from 'lucide-react';
-import { motion } from 'framer-motion';
-import useThemeStore from '../../../Stores/ThemeStore';
+// src/Components/Dashboard/VideoCall/VideoNavbar.jsx
+// Same UI – no Framer Motion, just Tailwind transitions.
+
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Home, LogOut, Moon, Sun } from "lucide-react";
+import useThemeStore from "../../../Stores/ThemeStore";
 
 const VideoNavbar = () => {
-  const { darkMode,toggleDarkMode }= useThemeStore();
+  const { darkMode, toggleDarkMode } = useThemeStore();
   const [isLoggedIn, setIsLoggedIn] = useState(true);
 
-  // Update dark mode class on root element
+  // Keep <html class="dark"> in sync
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  const handleLogout = () => {
-    // Add actual logout logic here
-    setIsLoggedIn(false);
-    // You might want to redirect here
-    // window.location.href = '/login';
-  };
+  const handleLogout = () => setIsLoggedIn(false); // plug your own logic
 
   if (!isLoggedIn) return null;
 
   return (
-    <nav className={`w-full py-3 px-4 border-b transition-colors duration-300 ${
-      darkMode 
-        ? 'bg-gray-900 border-gray-700 text-gray-100' 
-        : 'bg-white border-gray-200 text-gray-700'
-    }`}>
-      <div className="flex justify-between items-center max-w-7xl mx-auto">
-        {/* Left Side - Home Link */}
-        <motion.div
-          whileHover={{ scale: 1.03 }}
-          transition={{ type: 'spring', stiffness: 300 }}
+    <nav
+      className={`w-full border-b py-3 px-4 transition-colors ${
+        darkMode
+          ? "bg-gray-900 border-gray-700 text-gray-100"
+          : "bg-white  border-gray-200 text-gray-700"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Home */}
+        <Link
+          to="/"
+          className="flex items-center gap-1.5 hover:opacity-80 transition-transform transform hover:scale-[1.03]"
+          aria-label="Home"
         >
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-            aria-label="Home"
-          >
-            <Home className="w-5 h-5" />
-            <span className="hidden sm:block text-base font-medium">Home</span>
-          </Link>
-        </motion.div>
+          <Home className="w-5 h-5" />
+          <span className="hidden sm:block text-base font-medium">Home</span>
+        </Link>
 
-        {/* Right Side - Controls */}
+        {/* Right controls */}
         <div className="flex items-center gap-4">
-          {/* Dark Mode Toggle */}
-          <motion.button
-            onClick={() => toggleDarkMode()}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-            className={`flex items-center gap-1.5 p-1.5 rounded-md transition-colors ${
-              darkMode
-                ? 'hover:bg-gray-700/50'
-                : 'hover:bg-gray-100'
-            }`}
+          {/* Theme toggle */}
+          <button
+            onClick={toggleDarkMode}
             aria-label="Toggle dark mode"
+            className={`flex items-center gap-1.5 p-1.5 rounded-md transition
+              transform hover:scale-105 ${
+                darkMode ? "hover:bg-gray-700/50" : "hover:bg-gray-100"
+              }`}
           >
-            {darkMode ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             <span className="hidden sm:block text-base font-medium">
-              {darkMode ? 'Light Mode' : 'Dark Mode'}
+              {darkMode ? "Light Mode" : "Dark Mode"}
             </span>
-          </motion.button>
+          </button>
 
-          {/* Logout Button */}
-          <motion.button
+          {/* Logout */}
+          <button
             onClick={handleLogout}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-            className={`flex items-center gap-1.5 p-1.5 rounded-md transition-colors ${
-              darkMode
-                ? 'hover:bg-gray-700/50'
-                : 'hover:bg-gray-100'
-            }`}
             aria-label="Logout"
+            className={`flex items-center gap-1.5 p-1.5 rounded-md transition
+              transform hover:scale-105 ${
+                darkMode ? "hover:bg-gray-700/50" : "hover:bg-gray-100"
+              }`}
           >
             <LogOut className="w-5 h-5" />
             <span className="hidden sm:block text-base font-medium">Logout</span>
-          </motion.button>
+          </button>
         </div>
       </div>
     </nav>
