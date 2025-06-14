@@ -4,7 +4,7 @@ import admin from '../services/firebaseAdmin.js'
 const authenticateFirebaseToken = async (req, res, next) => {
     const token = req.headers.authorization?.split("Bearer ")[1]
     if (!token){
-        console.log("Error")
+        console.log("Error token nhi hai")
         return res.status(401).json({ error: "Token missing" })
     }
     try {
