@@ -1,3 +1,4 @@
+import cors from 'cors'
 import express from 'express'
 import mongoose from 'mongoose'
 import userRouter from "./routers/userRouters.js"
@@ -13,6 +14,10 @@ const PORT = process.env.PORT || 9000
 
 app.use(express.json())
 
+app.use(cors({
+  origin: 'https://linkupfrontend-ed87.onrender.com',
+  credentials: true, // if you're using cookies/auth
+}));
 // add this BEFORE authenticateFirebaseToken
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
 
