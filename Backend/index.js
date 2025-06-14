@@ -28,4 +28,6 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use("/api", userRouter)
 
-server.listen(PORT, () => console.log(`HTTP & WebSocket server running on http://localhost:${PORT}`))
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`HTTP & WebSocket server running on http://0.0.0.0:${PORT}`);
+});
