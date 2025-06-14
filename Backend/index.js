@@ -15,13 +15,13 @@ const PORT = process.env.PORT || 9000
 app.use(authenticateFirebaseToken)
 
 const server = http.createServer(app)
-
+app.use(express.json())
+app.get("/api/ping", (req, res) => res.json({ ok: true }));
 startWebSocketServer(server)
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log("MongoDb connected"))
 
-app.use(express.json())
 
 app.use("/api", userRouter)
 
