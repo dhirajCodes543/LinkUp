@@ -10,6 +10,8 @@ dotenv.config();
 
 const app = express()
 const PORT = process.env.PORT || 9000
+
+app.get("/api/ping", (req, res) => res.json({ ok: true }));
 app.use(authenticateFirebaseToken)
 
 const server = http.createServer(app)
