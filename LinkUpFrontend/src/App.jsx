@@ -13,6 +13,7 @@ const SignupPageVerification  = lazy(() => import("./Components/Authentication/S
 const SigninPage              = lazy(() => import("./Components/Authentication/SigninPage/SigninPage"));
 const ResetPasswordPage       = lazy(() => import("./Components/Authentication/SigninPage/ResetPasswordPage"));
 const Layout                  = lazy(() => import("./Components/Layouts/Layout"));
+const LogoutPage                  = lazy(() => import("./Components/Dashboard/VideoCall/Logout"));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/userinfo" element={<UserInfo />} />
           <Route path="/chat" element={<MainVideoCall />} />
+          <Route path="/logout" element={<LogoutPage />} />
 
           {/* ✅ Auth and layout pages nested correctly */}
           <Route element={<Layout />}>

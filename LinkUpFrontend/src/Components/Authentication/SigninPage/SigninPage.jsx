@@ -58,6 +58,7 @@ const SigninPage = () => {
         }
     };
 
+
     const handleGoogleLogin = async () => {
         if (loading) return;
         setLoading(true);
@@ -76,7 +77,7 @@ const SigninPage = () => {
                 if (isNewUser) {
                     navigate("/userinfo");
                 } else {
-                    navigate("/dashboard");
+                    navigate("/");
                 }
             }, 1500);
         } catch (error) {

@@ -5,17 +5,19 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Home, LogOut, Moon, Sun } from "lucide-react";
 import useThemeStore from "../../../Stores/ThemeStore";
+import { useNavigate } from "react-router-dom";
 
 const VideoNavbar = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const navigate = useNavigate();
 
   // Keep <html class="dark"> in sync
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  const handleLogout = () => setIsLoggedIn(false); // plug your own logic
+  const handleLogout = () => navigate('/logout'); // plug your own logic
 
   if (!isLoggedIn) return null;
 

@@ -9,14 +9,14 @@ dotenv.config();
 
 
 const app = express()
-const PORT = 9000
+const PORT = process.env.PORT || 9000
 app.use(authenticateFirebaseToken)
 
 const server = http.createServer(app)
 
 startWebSocketServer(server)
 
-mongoose.connect("mongodb://localhost:27017/LinkUp")
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log("MongoDb connected"))
 
 app.use(express.json())

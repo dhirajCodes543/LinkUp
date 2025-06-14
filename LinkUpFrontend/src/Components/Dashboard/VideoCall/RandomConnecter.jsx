@@ -10,7 +10,9 @@ const RandomConnector = () => {
     const [enable, setEnable] = useState(false);
     const [roomName, setRoomName] = useState("");
     const [token, setToken] = useState("");
-    const [joinUrl, setJoinUrl] = useState(null);
+    const [name, setName] = useState("");
+    const [avatar, setAvatar] = useState("");
+    const [college, setCollege] = useState("");
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectionStatus, setConnectionStatus] = useState("disconnected") // disconnected, connecting, connected, error
     const [error, setError] = useState("")
@@ -39,6 +41,7 @@ const RandomConnector = () => {
                     setConnectionStatus("error")
                     setError("Connection failed. Please try again.")
                     setIsConnecting(false)
+                    console.log(error);
                 }
 
                 socketRef.current.onmessage = (event) => {
@@ -53,11 +56,16 @@ const RandomConnector = () => {
                             setRoomId(data.room)
                             setIsConnecting(false)
                             setToken(data.token)
+                            setName(data.matchedUser.name);
+                            setAvatar(data.matchedUser.avatar);
+                            setCollege(data.matchedUser.college);
                             // console.log(data.token);
 
                             setError("")
                         }
                         // Handle queued status
+
+
                         else if (data.type === "queued") {
                             // Keep connecting state, user is in queue
                             console.log("User queued:", data.message)
@@ -120,7 +128,10 @@ const RandomConnector = () => {
             socketRef.current.send(JSON.stringify({
                 type: "join",
                 interests: backendData.interests || [],
-                id: backendData.firebaseUid
+                id: backendData.firebaseUid,
+                avatar: backendData.avatar,
+                college: backendData.college,
+                name: backendData.fullName
             }))
         } else {
             setError("Connection not available. Please refresh and try again.")
@@ -170,7 +181,7 @@ const RandomConnector = () => {
     }
 
     // Show video call when both roomId and userId are available
-    const showVideoCall = roomId && userId
+    const showVideoCall = roomId && userId && token
 
     return (
         <>
@@ -304,7 +315,18 @@ const RandomConnector = () => {
                         >
                             {/* Video Call Component */}
                             <Suspense fallback={<div className="p-8 text-center text-gray-400">Loading chat…</div>}>
-                                <AblyChat token={token} clientId={userId} room={roomId} />
+                                {token && (
+                                    <AblyChat
+                                        token={token}
+                                        setToken={setToken}
+                                        clientId={userId}
+                                        room={roomId}
+                                        userPhoto={avatar}
+                                        userName={name}
+                                        collegeName={college}
+                                    />
+                                )}
+
                             </Suspense>
                         </motion.div>
                     )}

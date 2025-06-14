@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageCircle,
@@ -16,12 +16,15 @@ import {
   Phone as LuPhone,
   User as LuUser
 } from 'lucide-react';
-import { FaInstagram, FaGithub } from 'react-icons/fa';
+const FaInstagram = lazy(() => import('react-icons/fa').then(module => ({ default: module.FaInstagram })));
+const FaGithub = lazy(() => import('react-icons/fa').then(module => ({ default: module.FaGithub })));
+const ToastContainer = lazy(() => import('react-toastify').then(module => ({ default: module.ToastContainer })));
 import useThemeStore from '../../Stores/ThemeStore';
 import useAuthStore from '../../Stores/AuthStore';
-import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';   // ← Add this
+
 
 const LinkUpLanding = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
@@ -162,6 +165,10 @@ const LinkUpLanding = () => {
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
+      <Suspense fallback={null}>
+        <ToastContainer theme={darkMode ? 'dark' : 'light'} />
+      </Suspense>
+
       {/* Navigation */}
       <nav className={`fixed top-0 w-full z-50 backdrop-blur-md ${darkMode ? 'bg-gray-900/80 border-gray-700' : 'bg-white/80 border-gray-200'} border-b`}>
         <ToastContainer />
@@ -216,7 +223,7 @@ const LinkUpLanding = () => {
 
               {isLoggedIn ? (
                 <button
-                  onClick={() => handleAuth('logout')}
+                  onClick={() => navigate('/logout')}
                   className={`px-4 py-2 rounded-lg ${darkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'} text-white transition-colors`}
                 >
                   Logout
@@ -274,7 +281,7 @@ const LinkUpLanding = () => {
 
                   {isLoggedIn ? (
                     <button
-                      onClick={() => handleAuth('logout')}
+                      onClick={() => navigate('/logout')}
                       className="px-4 py-2 bg-red-500 text-white rounded-lg"
                     >
                       Logout
@@ -516,7 +523,7 @@ const LinkUpLanding = () => {
               Real experiences from our community
             </p>
           </motion.div>
-          
+
           <div className="relative">
             <AnimatePresence mode="wait">
               <motion.div
@@ -601,12 +608,16 @@ const LinkUpLanding = () => {
                 Connecting tech students worldwide through secure, meaningful conversations.
               </p>
               <div className="flex space-x-4">
-                <a href="https://www.instagram.com/ddra890/" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
-                  <FaInstagram className="w-5 h-5" />
-                </a>
-                <a href="https://github.com/dhirajCodes543" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
-                  <FaGithub className="w-5 h-5" />
-                </a>
+                <Suspense fallback={<div className="w-9 h-9 bg-gray-300 rounded-lg animate-pulse" />}>
+                  <a href="https://www.instagram.com/ddra890/" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                    <FaInstagram className="w-5 h-5" />
+                  </a>
+                </Suspense>
+                <Suspense fallback={<div className="w-9 h-9 bg-gray-300 rounded-lg animate-pulse" />}>
+                  <a href="https://github.com/dhirajCodes543" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                    <FaGithub className="w-5 h-5" />
+                  </a>
+                </Suspense>
                 <a href="mailto:d4dhirajbarnwal@gmail.com" className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} transition-colors`}>
                   <Mail className="w-5 h-5" />
                 </a>

@@ -44,7 +44,10 @@ const startWebSocketServer = (server) => {
         }
 
         const newInterests = data.interests.map(i => String(i).trim().toLowerCase());
-        const clientId = data.id ;
+        const clientId = data.id;
+        const clientName = data.name || '';
+        const clientCollege = data.college || '';
+        const clientAvatar = data.avatar || '';
 
         // Try to find a match
         const matchIndex = waitingClients.findIndex(client =>
@@ -62,17 +65,27 @@ const startWebSocketServer = (server) => {
             const tokenA = await generateToken(clientId);
             const tokenB = await generateToken(matchedClient.id);
 
-            // 2. Prepare payloads
+            // 2. Prepare payloads with user information
             const payloadA = JSON.stringify({
               type: 'match_found',
               room: roomName,
               token: tokenA,
+              matchedUser: {
+                name: matchedClient.name,
+                college: matchedClient.college,
+                avatar: matchedClient.avatar
+              }
             });
             
             const payloadB = JSON.stringify({
               type: 'match_found',
               room: roomName,
               token: tokenB,
+              matchedUser: {
+                name: clientName,
+                college: clientCollege,
+                avatar: clientAvatar
+              }
             });
 
             if (matchedClient.ws.readyState === 1) { // WebSocket.OPEN = 1
@@ -105,7 +118,15 @@ const startWebSocketServer = (server) => {
             }
           }, 15000);
 
-          waitingClients.push({ ws, interests: newInterests, timeout, id: clientId });
+          waitingClients.push({ 
+            ws, 
+            interests: newInterests, 
+            timeout, 
+            id: clientId,
+            name: clientName,
+            college: clientCollege,
+            avatar: clientAvatar
+          });
           ws.send(JSON.stringify({ type: 'queued', message: 'Looking for match...' }));
           console.log(`Added client to queue. Queue size: ${waitingClients.length}`);
         }

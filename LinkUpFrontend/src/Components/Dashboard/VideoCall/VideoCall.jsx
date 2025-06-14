@@ -12,38 +12,43 @@ import React, {
   Suspense,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import useThemeStore from "../../../Stores/ThemeStore";
 
 /* ── 1️⃣  lazy‑load ONLY the icons you use ────────────────────────────── */
-const FaPaperPlane  = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaPaperPlane  })));
-const FaCircle      = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCircle      })));
-const FaMoon        = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaMoon        })));
-const FaSun         = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSun         })));
-const FaSignOutAlt  = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSignOutAlt  })));
-const FaExpand      = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaExpand      })));
-const FaCompress    = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCompress    })));
+const FaPaperPlane = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaPaperPlane })));
+const FaCircle = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCircle })));
+const FaMoon = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaMoon })));
+const FaSun = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSun })));
+const FaSignOutAlt = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaSignOutAlt })));
+const FaExpand = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaExpand })));
+const FaCompress = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCompress })));
 
 export default function AblyChat({
   token,
+  setToken,
   clientId,
   room,
   userPhoto = null,
   userName = "Test User",
   collegeName = "Demo College",
   isOnline = true,
-  onLeave = () => {},
 }) {
   /* ── state & refs (unchanged) ──────────────────────────────────────── */
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-const { darkMode, toggleDarkMode } = useThemeStore();
+  const { darkMode, toggleDarkMode } = useThemeStore();
   const [isFullscreen, setIsFullscreen] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [peerOnline, setPeerOnline] = useState(true);
+  const [peerLeftToast, setPeerLeftToast] = useState(false);
 
-  const ablyRef    = useRef(null);
+
+  const ablyRef = useRef(null);
   const channelRef = useRef(null);
-  const logRef     = useRef(null);
-  const inputRef   = useRef(null);
+  const logRef = useRef(null);
+  const inputRef = useRef(null);
 
   /* ── 2️⃣  load Ably SDK only when component mounts ─────────────────── */
   useEffect(() => {
@@ -67,7 +72,38 @@ const { darkMode, toggleDarkMode } = useThemeStore();
       channelRef.current = channel;
 
       ably.connection.on("connected", () => setIsConnected(true));
-      ably.connection.on("disconnected", () => setIsConnected(false));
+      ably.connection.on("disconnected", () => {
+        setIsConnected(false);
+        toast.error("⚠️ Connection lost. Leaving chat...", {
+          position: "bottom-center",
+          autoClose: 3000,
+          theme: darkMode ? "dark" : "light",
+        });
+
+        // Leave after delay
+        setTimeout(() => {
+          setToken(null);
+        }, 3000);
+      });
+
+      ably.connection.on("suspended", () => {
+        toast.warn("📡 Connection suspended. Retrying...", {
+          position: "bottom-center",
+          autoClose: 4000,
+          theme: darkMode ? "dark" : "light",
+        });
+        setTimeout(() => setToken(null), 4000);
+      });
+
+      ably.connection.on("failed", () => {
+        toast.error("❌ Failed to connect to Ably.", {
+          position: "bottom-center",
+          autoClose: 4000,
+          theme: darkMode ? "dark" : "light",
+        });
+        setTimeout(() => setToken(null), 4000);
+      });
+
 
       channel.subscribe("chat", ({ data, clientId: sender, timestamp }) => {
         if (sender === clientId) return;
@@ -79,6 +115,43 @@ const { darkMode, toggleDarkMode } = useThemeStore();
       });
 
       channel.presence.enter({ userName, status: "online" });
+
+
+
+      // …inside your existing async IIFE in useEffect, right after presence.enter
+
+      // 1️⃣ identify who else is here the moment you join
+      channel.presence.get((err, members) => {
+        if (err) return console.warn(err);
+
+        const someoneElse = members.some(m => m.clientId !== clientId);
+        setPeerOnline(someoneElse);
+      });
+
+      // 2️⃣ live presence updates
+      channel.presence.subscribe(({ action, clientId: sender }) => {
+        if (sender === clientId) return; // ignore yourself
+
+        if (action === "enter" || action === "update") setPeerOnline(true);
+        if (action === "leave" || action === "absent") {
+          setPeerOnline(false);
+          toast.warn("🚪 The other person has left the chat.", {
+            position: "bottom-center",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            theme: darkMode ? "dark" : "light",
+          });
+          setTimeout(() => {
+            setToken(null);
+          }, 5000);
+        }
+
+      });
+
+
     })();
 
     return () => {
@@ -87,6 +160,27 @@ const { darkMode, toggleDarkMode } = useThemeStore();
     };
   }, [token, clientId, room, userName]);
 
+  const onLeave = async () => {
+    try {
+      await channelRef.current?.presence.leave(); // 🔥 Notify peer IMMEDIATELY
+    } catch (e) {
+      console.warn("Presence leave failed:", e);
+    }
+
+    toast.success("🚪 You left the chat.", {
+      position: "bottom-center",
+      autoClose: 4000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      theme: darkMode ? "dark" : "light",
+    });
+
+    setTimeout(() => {
+      setToken(null); // triggers parent unmount
+    }, 5000);
+  };
   /* ── send message (unchanged) ──────────────────────────────────────── */
   const send = async () => {
     const text = input.trim();
@@ -130,17 +224,15 @@ const { darkMode, toggleDarkMode } = useThemeStore();
     /* Wrap everything in <Suspense> so lazy icons render safely */
     <Suspense fallback={<div className="p-4 text-center">Loading UI…</div>}>
       <div
-        className={`flex flex-col ${
-          isFullscreen ? "fixed inset-0 z-50" : "h-screen max-w-4xl mx-auto"
-        } ${darkMode ? "bg-gray-900" : "bg-blue-50"}`}
+        className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50" : "h-screen max-w-4xl mx-auto"
+          } ${darkMode ? "bg-gray-900" : "bg-blue-50"}`}
       >
         {/* header ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className={`p-4 flex items-center justify-between border-b ${
-            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-          }`}
+          className={`p-4 flex items-center justify-between border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+            }`}
         >
           {/* avatar + status */}
           <div className="flex items-center space-x-3">
@@ -156,17 +248,26 @@ const { darkMode, toggleDarkMode } = useThemeStore();
               </div>
             )}
             <div>
-              <h2 className="font-semibold text-lg">
-                {userName}
-              </h2>
-              <p className="text-sm flex items-center gap-1">
-                <FaCircle
-                  className={`w-2 h-2 ${
-                    isConnected ? "text-green-500" : "text-red-500"
+              <div className="flex items-center space-x-2">
+                <h2 className={`font-semibold text-lg ${darkMode ? "text-white" : "text-gray-800"}`}>
+                  {userName}
+                </h2>
+                <span className={`text-sm px-2 py-1 rounded-full ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
+                  }`}>
+                  {collegeName}
+                </span>
+              </div>
+              <p
+                className={`text-sm flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-600"
                   }`}
+              >
+                <FaCircle
+                  className={`w-2 h-2 ${peerOnline ? "text-green-400" : "text-red-500"
+                    }`}
                 />
-                {isConnected ? "Connected" : "Disconnected"}
+                {peerOnline ? "Connected" : "Disconnected"}
               </p>
+
             </div>
           </div>
 
@@ -174,9 +275,8 @@ const { darkMode, toggleDarkMode } = useThemeStore();
           <div className="flex items-center space-x-2">
             <button
               onClick={toggleDarkMode}
-              className={`p-2 rounded-full ${
-                darkMode ? "bg-yellow-500 text-white" : "bg-gray-200 text-gray-600"
-              }`}
+              className={`p-2 rounded-full ${darkMode ? "bg-yellow-500 text-white" : "bg-gray-200 text-gray-600"
+                }`}
               title="Toggle theme"
             >
               {darkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
@@ -184,9 +284,8 @@ const { darkMode, toggleDarkMode } = useThemeStore();
 
             <button
               onClick={toggleFullscreen}
-              className={`p-2 rounded-full ${
-                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-600"
-              }`}
+              className={`p-2 rounded-full ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-600"
+                }`}
               title="Fullscreen"
             >
               {isFullscreen ? <FaCompress size={16} /> : <FaExpand size={16} />}
@@ -218,13 +317,12 @@ const { darkMode, toggleDarkMode } = useThemeStore();
                 className={`flex ${m.me ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-lg px-4 py-3 rounded-2xl ${
-                    m.me
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                      : darkMode
+                  className={`max-w-lg px-4 py-3 rounded-2xl ${m.me
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                    : darkMode
                       ? "bg-gray-700 text-gray-100"
                       : "bg-white text-gray-800"
-                  }`}
+                    }`}
                 >
                   {m.text}
                   <p className="text-xs mt-1 opacity-70">
@@ -243,9 +341,8 @@ const { darkMode, toggleDarkMode } = useThemeStore();
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className={`border-t p-4 ${
-            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-          }`}
+          className={`border-t p-4 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+            }`}
         >
           <div className="flex items-end space-x-3">
             <textarea
@@ -257,27 +354,26 @@ const { darkMode, toggleDarkMode } = useThemeStore();
               }
               rows={1}
               placeholder="Type your message..."
-              className={`flex-1 resize-none p-3 rounded-2xl focus:outline-none ${
-                darkMode
-                  ? "bg-gray-700 text-white placeholder-gray-400"
-                  : "bg-gray-100 text-gray-800 placeholder-gray-500"
-              }`}
+              className={`flex-1 resize-none p-3 rounded-2xl focus:outline-none ${darkMode
+                ? "bg-gray-700 text-white placeholder-gray-400"
+                : "bg-gray-100 text-gray-800 placeholder-gray-500"
+                }`}
               style={{ minHeight: "56px", maxHeight: "150px" }}
             />
             <button
               onClick={send}
               disabled={!input.trim() || !isConnected}
-              className={`p-3 rounded-full flex-shrink-0 ${
-                input.trim() && isConnected
-                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
+              className={`p-3 rounded-full flex-shrink-0 ${input.trim() && isConnected
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
             >
               <FaPaperPlane />
             </button>
           </div>
         </motion.div>
       </div>
+      <ToastContainer />
     </Suspense>
   );
 }
