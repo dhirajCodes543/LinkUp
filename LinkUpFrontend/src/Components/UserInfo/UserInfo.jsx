@@ -100,7 +100,7 @@ export default function UserInfo() {
     try {
       const idToken = await user.getIdToken();
       const { data } = await axios.post(
-        "/api/signup",
+        `${import.meta.env.VITE_API_BASE_URL}/api/signup`,
         { avatar: profileImage, college: selectedCollege, interests, year },
         { headers: { Authorization: `Bearer ${idToken}` } }
       );

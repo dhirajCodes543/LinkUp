@@ -25,7 +25,7 @@ const RandomConnector = () => {
         // Initialize WebSocket connection
         const initSocket = () => {
             try {
-                socketRef.current = new WebSocket("ws://localhost:9000")
+                socketRef.current = new WebSocket("wss://linkup-backend-j59j.onrender.com");
 
                 socketRef.current.onopen = () => {
                     setConnectionStatus("connected")

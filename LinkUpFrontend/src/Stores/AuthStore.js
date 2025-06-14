@@ -53,7 +53,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    const res = await axios.get('/api/userdata', {
+    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/userdata`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
