@@ -1,7 +1,10 @@
 import admin from "firebase-admin";
 import fs from "fs";
-const serviceAccount = JSON.parse(fs.readFileSync(new URL("../serviceAccountKey.json", import.meta.url)));
- // ✅ JSON import
+
+// ✅ Render mounts secret files here
+const serviceAccount = JSON.parse(
+  fs.readFileSync("/etc/secrets/serviceAccountKey.json", "utf-8")
+);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
