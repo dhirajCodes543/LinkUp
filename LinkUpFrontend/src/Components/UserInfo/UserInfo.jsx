@@ -107,7 +107,8 @@ export default function UserInfo() {
       useAuthStore.getState().setBackendData(data.user);
       toast.success("Profile created!", { theme: darkMode ? "dark" : "light" });
       navigate("/");
-    } catch {
+    } catch(error) {
+      console.log(error)
       toast.error("Submit failed.", { theme: darkMode ? "dark" : "light" });
     } finally {
       setSubmitting(false);
