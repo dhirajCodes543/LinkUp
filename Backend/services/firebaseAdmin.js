@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 import fs from "fs";
 
-// ✅ Render mounts secret files here
+
 const serviceAccount = JSON.parse(
   fs.readFileSync("/etc/secrets/serviceAccountKey.json", "utf-8")
 );
