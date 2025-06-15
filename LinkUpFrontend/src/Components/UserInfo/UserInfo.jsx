@@ -1,4 +1,4 @@
-// UserInfo.jsx  –  cleaned & smaller
+
 import React, {
   useState,
   lazy,
@@ -14,13 +14,13 @@ import useThemeStore from "../../Stores/ThemeStore";
 import useAuthStore from "../../Stores/AuthStore";
 import { auth } from "../../firebase";
 
-/* lazy‑load react‑icons (same as before) */
+
 const FiMoon  = lazy(() => import("react-icons/fi").then(m => ({ default: m.FiMoon  })));
 const FiSun   = lazy(() => import("react-icons/fi").then(m => ({ default: m.FiSun   })));
 const FiCheck = lazy(() => import("react-icons/fi").then(m => ({ default: m.FiCheck })));
 const FiX     = lazy(() => import("react-icons/fi").then(m => ({ default: m.FiX     })));
 
-/* techInterests & avatars – unchanged */
+
 const techInterests = [
   { name: "Artificial Intelligence", emoji: "🤖" },
   { name: "Machine Learning",       emoji: "🧠" },
@@ -75,7 +75,7 @@ export default function UserInfo() {
   const { darkMode, toggleDarkMode } = useThemeStore();
   const navigate = useNavigate();
 
-  /* core local state */
+  
   const [profileImage, setProfileImage] = useState(avatars[4].url);
   const [selectedCollege, setSelectedCollege] = useState("");
   const [interests, setInterests]       = useState([]);
@@ -83,7 +83,7 @@ export default function UserInfo() {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [submitting, setSubmitting]     = useState(false);
 
-  /* ------------------------------------------------------------ */
+  
   async function handleSubmit(e) {
     e.preventDefault();
     if (!interests.length || !selectedCollege || !year) {
@@ -114,14 +114,14 @@ export default function UserInfo() {
       setSubmitting(false);
     }
   }
-  /* ------------------------------------------------------------ */
+  
 
   return (
     <Suspense fallback={<div className="p-4 text-center">Loading UI…</div>}>
       <div className={`min-h-screen transition-colors ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"}`}>
         <ToastContainer />
 
-        {/* Avatar modal */}
+      
         <AnimatePresence>
           {showAvatarModal && (
             <motion.div
@@ -163,9 +163,9 @@ export default function UserInfo() {
           )}
         </AnimatePresence>
 
-        {/* Main card */}
+      
         <div className="max-w-4xl mx-auto px-4 py-8">
-          {/* Header */}
+          
           <div className="flex justify-between items-center mb-8">
             <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="text-3xl font-bold flex items-center gap-3">
               <span className="text-4xl">🧑‍💻</span> Profile Setup
@@ -175,7 +175,7 @@ export default function UserInfo() {
             </button>
           </div>
 
-          {/* Form */}
+          
           <motion.form
             onSubmit={handleSubmit}
             initial={{ opacity: 0, y: 20 }}
@@ -187,7 +187,7 @@ export default function UserInfo() {
             }}
           >
 
-            {/* Avatar picker */}
+            
             <div className="flex flex-col items-center mb-8">
               <motion.button type="button" onClick={() => setShowAvatarModal(true)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="group relative">
                 <div className={`w-32 h-32 rounded-full border-4 ${darkMode ? "border-gray-600 hover:border-blue-500" : "border-gray-200 hover:border-blue-400"}`}>
@@ -201,7 +201,7 @@ export default function UserInfo() {
               </motion.button>
             </div>
 
-            {/* College & Year */}
+          
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="block text-lg font-semibold">🏫 College *</label>
@@ -233,7 +233,7 @@ export default function UserInfo() {
               </div>
             </div>
 
-            {/* Interests grid */}
+            
             <div className="space-y-2">
               <label className="block text-lg font-semibold">🎯 Tech Interests (max 4) *</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -269,7 +269,7 @@ export default function UserInfo() {
               </div>
             </div>
 
-            {/* Submit */}
+          
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
