@@ -16,9 +16,9 @@ app.use(express.json())
 
 app.use(cors({
   origin: 'https://linkup37.netlify.app',
-  credentials: true, // if you're using cookies/auth
+  credentials: true, 
 }));
-// add this BEFORE authenticateFirebaseToken
+
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
 
 app.use(authenticateFirebaseToken)
