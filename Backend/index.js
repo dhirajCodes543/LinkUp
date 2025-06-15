@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 9000
 app.use(express.json())
 
 app.use(cors({
-  origin: 'https://linkup37.netlify.app/',
+  origin: 'https://linkup37.netlify.app',
   credentials: true, // if you're using cookies/auth
 }));
 // add this BEFORE authenticateFirebaseToken
