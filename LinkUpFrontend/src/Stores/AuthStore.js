@@ -38,7 +38,7 @@ onAuthStateChanged(auth, async (user) => {
   await user.reload(); // 🔄 Refresh user data
   const freshUser = auth.currentUser;
   
-  console.log("user",user)
+  // console.log("user",user)
   useAuthStore.getState().setUser(user);
 
   let token;
@@ -46,7 +46,7 @@ onAuthStateChanged(auth, async (user) => {
     token = await freshUser.getIdToken(true);;
     // console.log(useAuthStore.getState().backendData)
   } catch (tokenError) {
-    console.error('Error getting Firebase token:', tokenError);
+    // console.error('Error getting Firebase token:', tokenError);
     // Even if token fails, update user without backend data
     useAuthStore.getState().setBackendData(null);
     return;
@@ -59,7 +59,7 @@ onAuthStateChanged(auth, async (user) => {
 
     // If successful, update store with backend data
     useAuthStore.getState().setBackendData(res.data);
-    console.log("nacho",useAuthStore.getState().backendData)
+    // console.log("nacho",useAuthStore.getState().backendData)
   } catch (error) {
     if (error.response) {
       // Backend responded with an error status

@@ -16,7 +16,6 @@ const RandomConnector = () => {
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectionStatus, setConnectionStatus] = useState("disconnected") // disconnected, connecting, connected, error
     const [error, setError] = useState("")
-
     const backendData = useAuthStore((state) => state.backendData)
     const darkMode = useThemeStore((state) => state.darkMode)
     const socketRef = useRef(null)
@@ -68,7 +67,7 @@ const RandomConnector = () => {
 
                         else if (data.type === "queued") {
                             // Keep connecting state, user is in queue
-                            console.log("User queued:", data.message)
+                            // console.log("User queued:", data.message)
                         }
                         // Handle timeout (no match found)
                         else if (data.type === "timeout") {
@@ -114,7 +113,7 @@ const RandomConnector = () => {
 
     const requestRandomMatch = () => {
         if (!backendData?.firebaseUid) {
-            setError("User authentication required")
+            setError("Complete your profile")
             return
         }
 
@@ -123,7 +122,7 @@ const RandomConnector = () => {
             setError("")
             setUserId(backendData.firebaseUid)
 
-            console.log(backendData.firebaseUid);
+            // console.log(backendData.firebaseUid);
 
             socketRef.current.send(JSON.stringify({
                 type: "join",
