@@ -1,11 +1,11 @@
-// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { motion } from "framer-motion";
 import useAuthStore from "./Stores/AuthStore";
 import HomePage from "./Components/Dashboard/HomePage";
 
-// Lazy-loaded components
+
 const MainVideoCall           = lazy(() => import("./Components/Dashboard/VideoCall/Main"));
 const UserInfo                = lazy(() => import("./Components/UserInfo/UserInfo"));
 const SignupPage              = lazy(() => import("./Components/Authentication/SignupPage/SignupPage"));
@@ -54,7 +54,7 @@ export default function App() {
           <Route path="/chat" element={<MainVideoCall />} />
           <Route path="/logout" element={<LogoutPage />} />
 
-          {/* ✅ Auth and layout pages nested correctly */}
+          
           <Route element={<Layout />}>
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verification" element={<SignupPageVerification />} />
@@ -62,7 +62,7 @@ export default function App() {
             <Route path="/resetpassword" element={<ResetPasswordPage />} />
           </Route>
 
-          {/* ✅ Fallback route */}
+        
           <Route path="*" element={<div className="text-center text-xl mt-20 text-red-500">404 - Page Not Found</div>} />
         </Routes>
       </Suspense>
