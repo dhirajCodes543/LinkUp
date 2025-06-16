@@ -1,5 +1,5 @@
-// src/Components/Dashboard/VideoCall/VideoNavbar.jsx
-// Same UI – no Framer Motion, just Tailwind transitions.
+
+
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -12,12 +12,12 @@ const VideoNavbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const navigate = useNavigate();
 
-  // Keep <html class="dark"> in sync
+  
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  const handleLogout = () => navigate('/logout'); // plug your own logic
+  const handleLogout = () => navigate('/logout'); 
 
   if (!isLoggedIn) return null;
 
