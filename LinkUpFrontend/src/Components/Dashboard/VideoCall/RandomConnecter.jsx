@@ -14,14 +14,14 @@ const RandomConnector = () => {
     const [avatar, setAvatar] = useState("");
     const [college, setCollege] = useState("");
     const [isConnecting, setIsConnecting] = useState(false)
-    const [connectionStatus, setConnectionStatus] = useState("disconnected") // disconnected, connecting, connected, error
+    const [connectionStatus, setConnectionStatus] = useState("disconnected") 
     const [error, setError] = useState("")
     const backendData = useAuthStore((state) => state.backendData)
     const darkMode = useThemeStore((state) => state.darkMode)
     const socketRef = useRef(null)
 
     useEffect(() => {
-        // Initialize WebSocket connection
+        
         const initSocket = () => {
             try {
                 socketRef.current = new WebSocket("wss://linkup-backend-j59j.onrender.com");
@@ -48,7 +48,7 @@ const RandomConnector = () => {
                         const data = JSON.parse(event.data)
                         console.log("Received data:", data)
 
-                        // Handle successful room assignment
+                        
                         if (data.type === 'match_found') {
                             console.log(data);
                             setEnable(!enable)
@@ -62,29 +62,29 @@ const RandomConnector = () => {
 
                             setError("")
                         }
-                        // Handle queued status
+                        
 
 
                         else if (data.type === "queued") {
-                            // Keep connecting state, user is in queue
+                            /
                             // console.log("User queued:", data.message)
                         }
-                        // Handle timeout (no match found)
+                        
                         else if (data.type === "timeout") {
                             setError(data.message || "No match found. Please try again.")
                             setIsConnecting(false)
                         }
-                        // Handle matching stopped (user cancelled)
+                        
                         else if (data.type === "matching_stopped") {
                             setError("Matching cancelled")
                             setIsConnecting(false)
                         }
-                        // Handle any error responses
+                    
                         else if (data.type === "error") {
                             setError(data.message || "An error occurred")
                             setIsConnecting(false)
                         }
-                        // Handle any other rejection or unknown response
+                        
                         else if (!data.roomId && !data.type) {
                             setError("Unexpected response from server")
                             setIsConnecting(false)
@@ -103,7 +103,7 @@ const RandomConnector = () => {
 
         initSocket()
 
-        // Cleanup on unmount
+        
         return () => {
             if (socketRef.current) {
                 socketRef.current.close()
@@ -122,7 +122,7 @@ const RandomConnector = () => {
             setError("")
             setUserId(backendData.firebaseUid)
 
-            // console.log(backendData.firebaseUid);
+            
 
             socketRef.current.send(JSON.stringify({
                 type: "join",
@@ -179,7 +179,7 @@ const RandomConnector = () => {
             : 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700'
     }
 
-    // Show video call when both roomId and userId are available
+    
     const showVideoCall = roomId && userId && token
 
     return (
