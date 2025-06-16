@@ -23,7 +23,7 @@ import useThemeStore from '../../Stores/ThemeStore';
 import useAuthStore from '../../Stores/AuthStore';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';   // ← Add this
+import { toast } from 'react-toastify';   
 
 
 const LinkUpLanding = () => {
@@ -35,14 +35,14 @@ const LinkUpLanding = () => {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   const navigate = useNavigate();
-  // Smooth scroll function
+  
   const smoothScrollTo = (elementId) => {
     const element = document.getElementById(elementId);
 
     if (!element) return;
 
     if (mobileMenuOpen) {
-      // Close the menu first, then scroll after 1 second
+      
       setMobileMenuOpen(false);
       setTimeout(() => {
         element.scrollIntoView({
@@ -52,7 +52,7 @@ const LinkUpLanding = () => {
         });
       }, 500);
     } else {
-      // If menu is not open, scroll immediately
+      
       element.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
@@ -62,7 +62,7 @@ const LinkUpLanding = () => {
   };
 
 
-  // Sample data
+  
   const features = [
     {
       icon: <Users className="w-8 h-8" />,
@@ -120,7 +120,7 @@ const LinkUpLanding = () => {
     }
   };
 
-  // Auto-rotate testimonials
+  
   useEffect(() => {
 
     console.log(isLoggedIn)
@@ -131,7 +131,7 @@ const LinkUpLanding = () => {
     return () => clearInterval(interval);
   }, [testimonials.length]);
 
-  // Handle authentication (placeholder)
+  
   const handleAuth = (action) => {
     if (action === 'login')
       navigate('/signin')
@@ -141,7 +141,7 @@ const LinkUpLanding = () => {
       navigate('/signup')
   };
 
-  // Animation variants
+  
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
