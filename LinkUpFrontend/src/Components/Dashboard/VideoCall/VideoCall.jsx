@@ -1,9 +1,4 @@
-// AblyChat.jsx  ───────────────────────────────────────────────────────────
-//
-// Same props & behaviour as before.
-// 1. Icons are lazy‑loaded.
-// 2. Ably SDK is imported dynamically inside useEffect.
-// ────────────────────────────────────────────────────────────────────────
+
 import React, {
   useState,
   useEffect,
@@ -16,7 +11,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useThemeStore from "../../../Stores/ThemeStore";
 
-/* ── 1️⃣  lazy‑load ONLY the icons you use ────────────────────────────── */
+
 const FaPaperPlane = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaPaperPlane })));
 const FaCircle = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaCircle })));
 const FaMoon = lazy(() => import("react-icons/fa").then(m => ({ default: m.FaMoon })));
@@ -35,7 +30,7 @@ export default function AblyChat({
   collegeName = "Demo College",
   isOnline = true,
 }) {
-  /* ── state & refs (unchanged) ──────────────────────────────────────── */
+  
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const { darkMode, toggleDarkMode } = useThemeStore();
@@ -50,14 +45,14 @@ export default function AblyChat({
   const logRef = useRef(null);
   const inputRef = useRef(null);
 
-  /* ── 2️⃣  load Ably SDK only when component mounts ─────────────────── */
+  
   useEffect(() => {
     if (!token || !clientId || !room) return;
 
     let isMounted = true;
 
     (async () => {
-      const AblyMod = await import("ably");            // <─ dynamic import
+      const AblyMod = await import("ably");            
       if (!isMounted) return;
 
       const ably = new AblyMod.default.Realtime({
@@ -118,9 +113,9 @@ export default function AblyChat({
 
 
 
-      // …inside your existing async IIFE in useEffect, right after presence.enter
+      
 
-      // 1️⃣ identify who else is here the moment you join
+      
       channel.presence.get((err, members) => {
         if (err) return console.warn(err);
 
@@ -128,9 +123,9 @@ export default function AblyChat({
         setPeerOnline(someoneElse);
       });
 
-      // 2️⃣ live presence updates
+      
       channel.presence.subscribe(({ action, clientId: sender }) => {
-        if (sender === clientId) return; // ignore yourself
+        if (sender === clientId) return; 
 
         if (action === "enter" || action === "update") setPeerOnline(true);
         if (action === "leave" || action === "absent") {
@@ -162,7 +157,7 @@ export default function AblyChat({
 
   const onLeave = async () => {
     try {
-      await channelRef.current?.presence.leave(); // 🔥 Notify peer IMMEDIATELY
+      await channelRef.current?.presence.leave();
     } catch (e) {
       console.warn("Presence leave failed:", e);
     }
@@ -178,10 +173,10 @@ export default function AblyChat({
     });
 
     setTimeout(() => {
-      setToken(null); // triggers parent unmount
+      setToken(null); 
     }, 5000);
   };
-  /* ── send message (unchanged) ──────────────────────────────────────── */
+  
   const send = async () => {
     const text = input.trim();
     if (!text || !channelRef.current || !isConnected) return;
@@ -200,7 +195,7 @@ export default function AblyChat({
     }
   };
 
-  /* ── auto‑resize textarea (unchanged) ──────────────────────────────── */
+  
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
@@ -211,23 +206,23 @@ export default function AblyChat({
     }
   }, [input]);
 
-  /* ── scroll to bottom when messages change ─────────────────────────── */
+  
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [messages]);
 
-  /* ── UI helpers (unchanged) ────────────────────────────────────────── */
+  
   const toggleFullscreen = () => setIsFullscreen((f) => !f);
 
-  /* ── rendering ------------------------------------------------------- */
+  
   return (
-    /* Wrap everything in <Suspense> so lazy icons render safely */
+    
     <Suspense fallback={<div className="p-4 text-center">Loading UI…</div>}>
       <div
         className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50" : "h-screen max-w-4xl mx-auto"
           } ${darkMode ? "bg-gray-900" : "bg-blue-50"}`}
       >
-        {/* header ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -301,7 +296,7 @@ export default function AblyChat({
           </div>
         </motion.div>
 
-        {/* messages ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        {/* messages */}
         <div
           ref={logRef}
           className="flex-1 overflow-y-auto p-4 space-y-3"
@@ -337,7 +332,7 @@ export default function AblyChat({
           </AnimatePresence>
         </div>
 
-        {/* composer ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ */}
+        {/* composer */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
